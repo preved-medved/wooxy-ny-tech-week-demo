@@ -1,0 +1,1176 @@
+{
+  "info": {
+    "_postman_id": "c0c1bc38-c8b2-4e2b-a1aa-80660fde7f4e",
+    "name": "Wooxy Integration API",
+    "description": "REST API microservice for user registration, email verification, authentication, and event tracking.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "41678350",
+    "_collection_link": "https://go.postman.co/collection/41678350-c0c1bc38-c8b2-4e2b-a1aa-80660fde7f4e?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "POST /v1/users/registration — 409 duplicate email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 409', () => pm.response.to.have.status(409));",
+              "const body = pm.response.json();",
+              "pm.test('code is email_already_registered', () => pm.expect(body.code).to.eql('email_already_registered'));",
+              "pm.test('message is present', () => pm.expect(body.message).to.be.a('string').and.not.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"name\": \"{{test_name}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/registration",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "registration"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/users/email-verification/{token} — 302 success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 302', () => pm.response.to.have.status(302));",
+              "pm.test('Location header is present', () => pm.expect(pm.response.headers.get('Location')).to.be.a('string').and.not.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/v1/users/email-verification/{{verification_token}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "email-verification",
+            "{{verification_token}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/login — 200 success (after manual email verification)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "",
+              "pm.test('Content-Type is JSON', () => ",
+              "    pm.response.to.have.header('Content-Type', 'application/json')",
+              ");",
+              "",
+              "const body = pm.response.json();",
+              "pm.test('access_token is present', () => pm.expect(body.access_token).to.be.a('string').and.not.empty);",
+              "pm.test('token_type is Bearer', () => pm.expect(body.token_type).to.eql('Bearer'));",
+              "pm.test('expires_in is a positive number', () => pm.expect(body.expires_in).to.be.a('number').and.above(0));",
+              "pm.test('user.id is present', () => pm.expect(body.user.id).to.be.a('number').and.above(0));",
+              "pm.test('user.email_verified is true', () => pm.expect(body.user.email_verified).to.be.true);",
+              "pm.collectionVariables.set('access_token', body.access_token);",
+              "pm.collectionVariables.set('user_id', body.user.id);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /v1/users/{user_id}/edit — 200 update name",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "",
+              "pm.test('Content-Type is JSON', () => ",
+              "    pm.response.to.have.header('Content-Type', 'application/json')",
+              ");",
+              "",
+              "const body = pm.response.json();",
+              "pm.test('name updated', () => pm.expect(body.name).to.eql('John Smith'));",
+              "pm.test('id matches', () => pm.expect(body.id).to.eql(parseInt(pm.collectionVariables.get('user_id'))));",
+              "pm.test('email unchanged', () => pm.expect(body.email).to.be.a('string').and.not.empty);",
+              "pm.test('updated_at is present', () => pm.expect(body.updated_at).to.be.a('string').and.not.empty);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Smith\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/{{user_id}}/edit",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "{{user_id}}",
+            "edit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /v1/users/{user_id}/edit — 200 update password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('id matches', () => pm.expect(body.id).to.eql(parseInt(pm.collectionVariables.get('user_id'))));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"N3wS3cure!Passw0rd\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/{{user_id}}/edit",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "{{user_id}}",
+            "edit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/events/add — 204 success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 204', () => pm.response.to.have.status(204));",
+              "pm.test('Body is empty', () => pm.expect(pm.response.text()).to.eql(''));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/events/add?user_id={{user_id}}&event_name=add_to_cart",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "events",
+            "add"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "{{user_id}}"
+            },
+            {
+              "key": "event_name",
+              "value": "add_to_cart"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/registration — 400 missing email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));",
+              "pm.test('message is present', () => pm.expect(body.message).to.be.a('string').and.not.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"{{test_password}}\",\n  \"name\": \"{{test_name}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/registration",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "registration"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/registration — 400 invalid email format",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));",
+              "pm.test('details.field is email', () => pm.expect(body.details.field).to.eql('email'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"{{test_password}}\",\n  \"name\": \"{{test_name}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/registration",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "registration"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/registration — 400 password too short",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"short\",\n  \"name\": \"{{test_name}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/registration",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "registration"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/registration — 400 missing name",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/registration",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "registration"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/login — 400 missing email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"password\": \"{{test_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/login — 400 missing password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "POST /v1/users/login — 401 invalid credentials",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "const body = pm.response.json();",
+              "pm.test('code is invalid_email_or_password', () => pm.expect(body.code).to.eql('invalid_email_or_password'));",
+              "pm.test('message is present', () => pm.expect(body.message).to.be.a('string').and.not.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"WrongPassword1!\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/users/email-verification/{token} — 400 malformed token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is invalid_token_format', () => pm.expect(body.code).to.eql('invalid_token_format'));",
+              "pm.test('message is present', () => pm.expect(body.message).to.be.a('string').and.not.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/v1/users/email-verification/short",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "email-verification",
+            "short"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/users/email-verification/{token} — 404 token not found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 404', () => pm.response.to.have.status(404));",
+              "const body = pm.response.json();",
+              "pm.test('code is token_not_found', () => pm.expect(body.code).to.eql('token_not_found'));",
+              "pm.test('message is present', () => pm.expect(body.message).to.be.a('string').and.not.empty);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/v1/users/email-verification/thisTokenDoesNotExist123456",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "email-verification",
+            "thisTokenDoesNotExist123456"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /v1/users/{user_id}/edit — 400 user not found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is user_not_found', () => pm.expect(body.code).to.eql('validation_failed'));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Ghost User\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/0/edit",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "0",
+            "edit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /v1/users/{user_id}/edit — 403 user_id mismatch",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403', () => pm.response.to.have.status(403));",
+              "const body = pm.response.json();",
+              "pm.test('code is user_not_found', () => pm.expect(body.code).to.eql('forbidden'));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Hacker\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/99999/edit",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "99999",
+            "edit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /v1/users/{user_id}/edit — 403 attempt to change email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403', () => pm.response.to.have.status(403));",
+              "const body = pm.response.json();",
+              "pm.test('code is field_not_editable', () => pm.expect(body.code).to.eql('field_not_editable'));",
+              "pm.test('details.field is email', () => pm.expect(body.details.field).to.eql('email'));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"newemail@example.com\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/{{user_id}}/edit",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "{{user_id}}",
+            "edit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /v1/users/{user_id}/edit — 401 missing token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "const body = pm.response.json();",
+              "pm.test('code is unauthorized', () => pm.expect(body.code).to.eql('unauthorized'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"John Smith\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/{{user_id}}/edit",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "{{user_id}}",
+            "edit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PATCH /v1/users/{user_id}/edit — 400 empty body",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/{{user_id}}/edit",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "{{user_id}}",
+            "edit"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/events/add — 400 user not found",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is user_not_found', () => pm.expect(body.code).to.eql('validation_failed'));",
+              "pm.test('details.field is user_id', () => pm.expect(body.details.field).to.eql('user_id'));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/events/add?user_id=0&event_name=add_to_cart",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "events",
+            "add"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "0"
+            },
+            {
+              "key": "event_name",
+              "value": "add_to_cart"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/events/add — 403 user_id mismatch",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 403', () => pm.response.to.have.status(403));",
+              "const body = pm.response.json();",
+              "pm.test('code is forbidden', () => pm.expect(body.code).to.eql('forbidden'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/events/add?user_id=99999&event_name=add_to_cart",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "events",
+            "add"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "99999"
+            },
+            {
+              "key": "event_name",
+              "value": "add_to_cart"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/events/add — 401 missing token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 401', () => pm.response.to.have.status(401));",
+              "const body = pm.response.json();",
+              "pm.test('code is unauthorized', () => pm.expect(body.code).to.eql('unauthorized'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/v1/events/add?user_id={{user_id}}&event_name=add_to_cart",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "events",
+            "add"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "{{user_id}}"
+            },
+            {
+              "key": "event_name",
+              "value": "add_to_cart"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/events/add — 400 missing user_id",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/events/add?event_name=add_to_cart",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "events",
+            "add"
+          ],
+          "query": [
+            {
+              "key": "event_name",
+              "value": "add_to_cart"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /v1/events/add — 400 missing event_name",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400', () => pm.response.to.have.status(400));",
+              "const body = pm.response.json();",
+              "pm.test('code is validation_failed', () => pm.expect(body.code).to.eql('validation_failed'));",
+              "pm.test('details.field is event_name', () => pm.expect(body.details.field).to.eql('event_name'));"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{access_token}}"
+          }
+        ],
+        "url": {
+          "raw": "{{base_url}}/v1/events/add?user_id={{user_id}}",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "events",
+            "add"
+          ],
+          "query": [
+            {
+              "key": "user_id",
+              "value": "{{user_id}}"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GET /healthz — alive",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "",
+              "pm.test('Content-Type is JSON', () => ",
+              "    pm.response.to.have.header('Content-Type', 'application/json')",
+              ");",
+              "",
+              "const body = pm.response.json();",
+              "pm.test('status is ok', () => pm.expect(body.status).to.eql('ok'));"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/healthz",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "healthz"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "user_id",
+      "value": ""
+    }
+  ]
+}

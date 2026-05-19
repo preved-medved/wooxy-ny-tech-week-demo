@@ -1,0 +1,81 @@
+{
+  "info": {
+    "_postman_id": "32b53937-df80-4fd5-9d18-eed2ff1f9bf5",
+    "name": "Wooxy Integration API - Create User",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "41678350",
+    "_collection_link": "https://go.postman.co/collection/41678350-32b53937-df80-4fd5-9d18-eed2ff1f9bf5?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "POST /v1/users/registration — 201 success",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "",
+              "pm.test('Content-Type is JSON', () => ",
+              "    pm.response.to.have.header('Content-Type', 'application/json')",
+              ");",
+              "",
+              "const body = pm.response.json();",
+              "",
+              "pm.test('id is a positive integer', () => ",
+              "    pm.expect(body.id).to.be.a('number').and.to.be.above(0)",
+              ");",
+              "",
+              "pm.test('email matches', () => ",
+              "    pm.expect(body.email).to.eql(pm.environment.get('test_email'))",
+              ");",
+              "pm.test('name matches', () => ",
+              "    pm.expect(body.name).to.eql(pm.environment.get('test_name'))",
+              ");",
+              "",
+              "pm.test('email_verified is false', () => pm.expect(body.email_verified).to.be.false);",
+              "pm.test('email_verified_at is null', () => pm.expect(body.email_verified_at).to.be.null);",
+              "pm.test('created_at present', () => pm.expect(body.created_at).to.be.a('string').and.not.empty);",
+              "pm.test('updated_at present', () => pm.expect(body.updated_at).to.be.a('string').and.not.empty);",
+              "pm.collectionVariables.set('user_id', body.id);"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"password\": \"{{test_password}}\",\n  \"name\": \"{{test_name}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/v1/users/registration",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "v1",
+            "users",
+            "registration"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "user_id",
+      "value": ""
+    }
+  ]
+}

@@ -1,0 +1,565 @@
+openapi: 3.0.3
+info:
+  title: Wooxy Integration API
+  description: |
+    REST API microservice for user registration, email verification,
+    authentication, and event tracking. The collected event stream is
+    intended to power email marketing, notifications, and other
+    automation systems.
+  version: 1.0.0
+
+servers:
+  - url: http://api.example.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+tags:
+  - name: Users
+    description: User registration, authentication, and email verification.
+  - name: Events
+    description: User activity and event tracking.
+
+paths:
+  /v1/users/registration:
+    post:
+      tags: [Users]
+      summary: Register a new user
+      description: |
+        Creates a new user account and sends an email containing a one-time
+        verification token to the provided email address.
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationRequest'
+      responses:
+        '201':
+          description: User successfully registered. A verification email has been sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Request payload failed validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: validation_failed
+                message: Email is invalid.
+                details:
+                  field: email
+        '409':
+          description: A user with the provided email already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: email_already_registered
+                message: A user with this email already exists.
+        '424':
+          description: |
+            A required Wooxy upstream call failed (email validation or
+            sending the verification email). The user was not persisted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: upstream_dependency_failed
+                message: Wooxy request failed; registration was not completed.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: internal_error
+                message: An unexpected error occurred while creating the user.
+
+  /v1/users/login:
+    post:
+      tags: [Users]
+      summary: Authenticate a user
+      description: |
+        Authenticates a user using email and password and returns an access
+        token that can be used to call protected endpoints.
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Request payload failed validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: validation_failed
+                message: Email and password are required.
+        '401':
+          description: Invalid email or password.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: invalid_email_or_password
+                message: Invalid email or password.
+        '403':
+          description: Email has not been verified yet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: email_not_verified
+                message: Email address has not been verified. Please verify your email before logging in.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: internal_error
+                message: An unexpected error occurred during authentication.
+
+  /v1/users/email-verification/{token}:
+    get:
+      tags: [Users]
+      summary: Verify a user's email
+      description: |
+        Validates a one-time email verification token previously sent to
+        the user's email address and marks the account as verified. On
+        success, the user is redirected to the URL specified by the
+        `VERIFICATION_PAGE_REDIRECT` environment variable.
+      operationId: verifyEmail
+      parameters:
+        - name: token
+          in: path
+          required: true
+          description: One-time email verification token.
+          schema:
+            type: string
+            minLength: 16
+      responses:
+        '302':
+          description: |
+            Email verified successfully. The response redirects the user to
+            the URL configured in the `VERIFICATION_PAGE_REDIRECT`
+            environment variable.
+          headers:
+            Location:
+              description: Target URL from `VERIFICATION_PAGE_REDIRECT`.
+              schema:
+                type: string
+                format: uri
+                example: https://your-domain.com/email-verified
+        '400':
+          description: Verification token is malformed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: invalid_token_format
+                message: Verification token is malformed.
+        '404':
+          description: Token not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: token_not_found
+                message: Verification token not found.
+        '424':
+          description: |
+            The email was marked verified, but the Wooxy "Add contact"
+            call failed. No redirect is issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: upstream_dependency_failed
+                message: Failed to register contact with Wooxy after email verification.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: internal_error
+                message: An unexpected error occurred while verifying the email.
+
+  /v1/users/{user_id}/edit:
+    patch:
+      tags: [Users]
+      summary: Update a user
+      description: |
+        Updates profile fields of the user identified by `{user_id}`.
+        The Bearer access token must belong to the same user; otherwise
+        the request is rejected with `403`. The `email` field cannot be
+        changed via this endpoint.
+      operationId: updateUser
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          description: Identifier of the user to update. Must match the user identified by the Bearer access token.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 42
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User successfully updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Request payload failed validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: validation_failed
+                message: At least one updatable field must be provided.
+        '401':
+          description: Authentication is required or the provided token is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: unauthorized
+                message: Missing or invalid access token.
+        '403':
+          description: |
+            The caller is not allowed to perform this update. Either the
+            Bearer token belongs to a different user than `{user_id}`, or
+            the request body contains a non-editable field (e.g. `email`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                forbidden_user_mismatch:
+                  summary: Token user does not match path user_id
+                  value:
+                    code: forbidden
+                    message: You are not allowed to modify this user.
+                field_not_editable:
+                  summary: Attempt to change a non-editable field
+                  value:
+                    code: field_not_editable
+                    message: The 'email' field cannot be changed via this endpoint.
+                    details:
+                      field: email
+        '404':
+          description: User with the provided `user_id` was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: user_not_found
+                message: User not found.
+                details:
+                  field: user_id
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: internal_error
+                message: An unexpected error occurred while updating the user.
+
+  /v1/events/add:
+    get:
+      tags: [Events]
+      summary: Forward a user event
+      description: |
+        Forwards an event performed by the user identified by `user_id` to
+        the Wooxy Custom Event API. This endpoint acts as a proxy and does
+        **not** persist event data in the local database. The Bearer access
+        token must belong to the same user; otherwise the request is
+        rejected with `403`. Downstream consumers (email marketing,
+        notification engines, etc.) receive the event via Wooxy.
+      operationId: addEvent
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          description: Identifier of the user the event belongs to. Must match the user identified by the Bearer access token.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+            example: 42
+        - name: event_name
+          in: query
+          required: true
+          description: Custom event name, one of the allowed event name for further usage.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 40
+            example: add_to_cart
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Event accepted for processing.
+        '400':
+          description: Request payload failed validation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: validation_failed
+                message: event_name is required.
+                details:
+                  field: event_name
+        '401':
+          description: Authentication is required or the provided token is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: unauthorized
+                message: Missing or invalid access token.
+        '403':
+          description: The Bearer token belongs to a different user than `{user_id}`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: forbidden
+                message: You are not allowed to record events for this user.
+        '404':
+          description: User with the provided `user_id` was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: user_not_found
+                message: User not found.
+                details:
+                  field: user_id
+        '424':
+          description: |
+            The Wooxy custom-event forwarding call failed. The event was
+            not delivered to downstream consumers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: upstream_dependency_failed
+                message: Failed to forward event to Wooxy.
+        '500':
+          description: Unexpected server error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: internal_error
+                message: An unexpected error occurred while recording the event.
+
+  /healthz:
+    get:
+      tags:
+        - Health
+      summary: Liveness probe
+      security: []
+      description: |
+        Returns 200 if the service process is alive and able to serve requests.
+        Used by orchestrators (Docker, Kubernetes) for liveness checks.
+        This endpoint does not check downstream dependencies.
+      operationId: healthz
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RegistrationRequest:
+      type: object
+      required: [email, password, name]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          example: S3cure!Passw0rd
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Jane Doe
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: S3cure!Passw0rd
+
+    LoginResponse:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        token_type:
+          type: string
+          example: Bearer
+        expires_in:
+          type: integer
+          description: Token lifetime in seconds.
+          example: 3600
+        user:
+          $ref: '#/components/schemas/UserResponse'
+
+    UserResponse:
+      type: object
+      required: [id, email, name, email_verified, created_at, updated_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Auto-incremented unsigned integer identifier.
+          example: 42
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: user@example.com
+        name:
+          type: string
+          maxLength: 255
+          example: Jane Doe
+        email_verified:
+          type: boolean
+          example: false
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Timestamp of email verification. Null until verified.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UpdateUserRequest:
+      type: object
+      description: |
+        Partial update of the authenticated user's profile. All fields are
+        optional; at least one field must be provided. The `email` field is
+        intentionally not editable.
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: Jane Doe
+          description: Display name of the user.
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 72
+          example: N3wS3cure!Passw0rd
+          description: New password. When provided, replaces the existing one.
+      additionalProperties: false
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: invalid_request
+        message:
+          type: string
+          example: Email is required.
+        details:
+          type: object
+          additionalProperties: true
+
+    HealthResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [ok]
+          example: "ok"
