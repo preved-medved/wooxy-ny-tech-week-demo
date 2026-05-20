@@ -139,7 +139,7 @@ The incoming request must be transformed into the following payload format:
 ### Field Mapping Rules
 
 - `domain` - Loaded from the APP_DOMAIN configuration variable
-- `customEvent` - Value from `event_name` after validation. It has to be one of the list `['visit_contact_page','add_to_cart','add_to_cart_123']`
+- `customEvent` - Value from `event_name` after validation. It has to be one of the list `['visit_contact_page','add_to_cart']`
 - `contact` - User email loaded from the users table using `user_id`
 
 ## Authentication

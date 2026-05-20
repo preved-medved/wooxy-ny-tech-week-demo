@@ -105,6 +105,10 @@ newman run stage-1-create-user.postman_collection.json -e wooxy-local.postman_en
 newman run stage-2-e2e.postman_collection.json -e wooxy-local.postman_environment.json
 ```
 
+> Unfortunately, the tests had to be split into two files because the E2E scenario requires a token from the email.
+> To keep the test flow simple and easy to understand, the tests were divided into two separate runs.
+> You need to extract the `token` from the verification link received by email and add it to the environment variables in Postman.
+
 These are the same tests that are written by the architect / QA (human-in-the-loop) as part of the specification process.
 
 - Validates API behavior against the specification
